@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import platform
 import subprocess
 from pathlib import Path
 from typing import Callable
@@ -23,7 +24,7 @@ def _model_device(model) -> torch.device:
     return next(model.parameters()).device
 
 
-def load_whisper_model(model_name: str, log: LogFn):
+def load_whisper_model(model_name: str, log: LogFn) -> whisper.Whisper:
     cuda_available = torch.cuda.is_available()
     mps_available = hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
     log(
@@ -80,13 +81,36 @@ def download_audio(video_id: str, video_url: str, audio_dir: Path, log: LogFn) -
     return audio_path
 
 
+def _has_fast_dtw() -> bool:
+    """Check if Triton is available for fast word-level DTW alignment.
+
+    Triton is Linux-only; on Windows/macOS the fallback DTW is
+    extremely slow on long audio and effectively freezes.
+    """
+    if platform.system() != "Linux":
+        return False
+    try:
+        import triton  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def transcribe_audio(model, audio_path: Path, log: LogFn) -> dict[str, object]:
-    log(f"Transcribing {audio_path.name} with word timestamps...")
     device = _model_device(model)
     use_fp16 = device.type == "cuda"
+    use_word_ts = _has_fast_dtw()
+
+    if use_word_ts:
+        log(f"Transcribing {audio_path.name} with word timestamps...")
+    else:
+        log(f"Transcribing {audio_path.name} (word timestamps disabled — no Triton)...")
+
     result = model.transcribe(
         str(audio_path),
-        word_timestamps=True,
+        # language="en",
+        task="translate",
+        word_timestamps=use_word_ts,
         verbose=False,
         fp16=use_fp16,
     )

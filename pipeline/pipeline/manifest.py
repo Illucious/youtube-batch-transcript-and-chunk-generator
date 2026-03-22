@@ -20,6 +20,8 @@ def _normalize_video(entry: dict[str, Any]) -> dict[str, Any]:
     video_id = entry.get("id") or entry.get("video_id")
     if not isinstance(video_id, str) or not video_id:
         raise ValueError("Missing video id in manifest entry")
+    if "/" in video_id or "\\" in video_id or ".." in video_id:
+        raise ValueError(f"Unsafe video id rejected: {video_id!r}")
 
     original_url = entry.get("webpage_url")
     if isinstance(original_url, str) and original_url.startswith("http"):

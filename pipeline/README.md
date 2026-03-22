@@ -22,6 +22,7 @@ All processing runs locally. No web framework or hosted API is used.
 pipeline/
 ├── main.py
 ├── gui.py
+├── cleanup.py
 ├── requirements.txt
 ├── README.md
 ├── pipeline/
@@ -53,6 +54,8 @@ Python dependencies are in `requirements.txt`:
 - `openai-whisper`
 - `torch`
 
+> **Note:** `requirements.txt` includes `--extra-index-url https://download.pytorch.org/whl/cu128` so that `pip`/`uv` can fetch the CUDA 12.8 build of PyTorch. If you don't have an NVIDIA GPU, the CPU-only wheel will still work — the extra index is simply preferred when a matching CUDA build is available.
+
 `tkinter` is part of Python stdlib on macOS Python distributions that include Tk.
 
 ## Quickstart (uv)
@@ -67,7 +70,7 @@ uv run python pipeline/main.py
 
 ## GUI Usage
 
-1. Paste a YouTube playlist URL or channel URL.
+1. Paste a YouTube playlist or channel URL (must be a `youtube.com` or `youtu.be` link).
 2. Choose Whisper model size.
 3. Click **Start**.
 4. Watch live progress/logs.
@@ -86,11 +89,13 @@ For each video, sequentially:
 
 1. **Manifested**: metadata gathered from `yt-dlp`
 2. **Audio Downloaded**: audio-only file downloaded into `data/audio/`
-3. **Transcribed**: Whisper transcription with `word_timestamps=True` saved to `data/transcripts/{video_id}.json`
+3. **Transcribed**: Whisper transcription with `language="en"` (forced English) saved to `data/transcripts/{video_id}.json`. Word-level timestamps are enabled when Triton is available (Linux only); otherwise segment-level timestamps are used.
 4. **Chunked**: transcript chunked (~400 words, 50 overlap) to `data/chunks/{video_id}.json`
 5. **Cleanup**: temporary audio removed
 
 If any stage fails, video is marked `failed` in state and processing continues.
+
+> **Language:** Transcription is auto translated to English as i think this will be more useful for the RAG pipeline. If you need multi-language support, change the `language` parameter in `pipeline/transcriber.py`.
 
 ## Resumability and State
 
@@ -174,6 +179,15 @@ If GPU initialization fails, the app falls back to CPU and continues.
 - Missing `ffmpeg`: install it and retry.
 - Slow transcription: use smaller model (`tiny`/`base`) for speed.
 - Empty chunks: some transcripts may not contain word-level data for specific media; output can be empty for that video.
+- Invalid URL: the GUI validates that the URL starts with `youtube.com` or `youtu.be` before starting.
+
+## Cleanup
+
+To reset the pipeline and remove all generated data (audio, transcripts, chunks, logs, and state), run the included cleanup script. **Ensure the GUI is closed before running** to avoid file locking errors on Windows:
+
+```bash
+uv run python pipeline/cleanup.py
+```
 
 ## Development Notes
 
@@ -181,3 +195,4 @@ If GPU initialization fails, the app falls back to CPU and continues.
 - Inter-thread communication uses `queue.Queue` events.
 - Stop control uses `threading.Event`.
 - No single video failure should crash the full run.
+- `video_id` values from `yt-dlp` are sanitized to reject path separators, preventing path traversal in file writes.

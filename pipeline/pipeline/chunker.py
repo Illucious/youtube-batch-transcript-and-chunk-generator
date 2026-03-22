@@ -2,16 +2,21 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Callable
 
-
-LogFn = Callable[[str], None]
+from pipeline.transcriber import LogFn
 
 CHUNK_SIZE_WORDS = 400
 OVERLAP_WORDS = 50
 
 
 def _collect_words(transcript: dict) -> list[dict]:
+    """Extract word-level entries from transcript.
+
+    Prefers word-level timestamps when available (Triton/Linux).
+    Falls back to segment-level timestamps otherwise, splitting
+    segment text into individual words that share the segment's
+    start/end time.
+    """
     words: list[dict] = []
     segments = transcript.get("segments")
     if not isinstance(segments, list):
@@ -20,32 +25,37 @@ def _collect_words(transcript: dict) -> list[dict]:
     for segment in segments:
         if not isinstance(segment, dict):
             continue
+
+        # Try word-level data first
         seg_words = segment.get("words")
-        if not isinstance(seg_words, list):
-            continue
-
-        for word in seg_words:
-            if not isinstance(word, dict):
+        if isinstance(seg_words, list) and seg_words:
+            for word in seg_words:
+                if not isinstance(word, dict):
+                    continue
+                text = word.get("word")
+                start = word.get("start")
+                end = word.get("end")
+                if not isinstance(text, str):
+                    continue
+                if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
+                    continue
+                normalized = " ".join(text.strip().split())
+                if not normalized:
+                    continue
+                words.append({"word": normalized, "start": float(start), "end": float(end)})
+        else:
+            # Fallback: use segment-level timestamps
+            text = segment.get("text", "")
+            seg_start = segment.get("start")
+            seg_end = segment.get("end")
+            if not isinstance(text, str) or not text.strip():
                 continue
-            text = word.get("word")
-            start = word.get("start")
-            end = word.get("end")
-            if not isinstance(text, str):
+            if not isinstance(seg_start, (int, float)) or not isinstance(seg_end, (int, float)):
                 continue
-            if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
-                continue
-
-            normalized = " ".join(text.strip().split())
-            if not normalized:
-                continue
-
-            words.append(
-                {
-                    "word": normalized,
-                    "start": float(start),
-                    "end": float(end),
-                }
-            )
+            for token in text.strip().split():
+                normalized = " ".join(token.strip().split())
+                if normalized:
+                    words.append({"word": normalized, "start": float(seg_start), "end": float(seg_end)})
 
     return words
 

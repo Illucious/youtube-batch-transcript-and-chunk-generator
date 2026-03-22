@@ -153,12 +153,26 @@ class IngestionGUI:
         self.log_widget.configure(state="disabled")
         self.log_widget.see(END)
 
+    _YOUTUBE_PREFIXES = (
+        "https://youtube.com",
+        "https://www.youtube.com",
+        "https://youtu.be",
+        "http://youtube.com",
+        "http://www.youtube.com",
+    )
+
     def start(self) -> None:
         url = self.url_var.get().strip()
         model = self.model_var.get().strip()
         if not url:
             messagebox.showerror(
                 "Missing URL", "Please provide a playlist or channel URL."
+            )
+            return
+        if not url.startswith(self._YOUTUBE_PREFIXES):
+            messagebox.showerror(
+                "Invalid URL",
+                "URL must be a YouTube link (youtube.com or youtu.be).",
             )
             return
         if model not in MODELS:

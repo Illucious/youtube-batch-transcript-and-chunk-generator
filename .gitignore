@@ -1,1 +1,31 @@
-__pycache__
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# Ruff cache
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Pipeline data (generated at runtime)
+pipeline/data/audio/
+pipeline/data/transcripts/*.json
+pipeline/data/chunks/*.json
+pipeline/data/logs/
+pipeline/data/state.json
+pipeline/data/manifest.json
