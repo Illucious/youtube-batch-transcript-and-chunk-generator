@@ -37,12 +37,16 @@ def _collect_words(transcript: dict) -> list[dict]:
                 end = word.get("end")
                 if not isinstance(text, str):
                     continue
-                if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
+                if not isinstance(start, (int, float)) or not isinstance(
+                    end, (int, float)
+                ):
                     continue
                 normalized = " ".join(text.strip().split())
                 if not normalized:
                     continue
-                words.append({"word": normalized, "start": float(start), "end": float(end)})
+                words.append(
+                    {"word": normalized, "start": float(start), "end": float(end)}
+                )
         else:
             # Fallback: use segment-level timestamps
             text = segment.get("text", "")
@@ -50,12 +54,20 @@ def _collect_words(transcript: dict) -> list[dict]:
             seg_end = segment.get("end")
             if not isinstance(text, str) or not text.strip():
                 continue
-            if not isinstance(seg_start, (int, float)) or not isinstance(seg_end, (int, float)):
+            if not isinstance(seg_start, (int, float)) or not isinstance(
+                seg_end, (int, float)
+            ):
                 continue
             for token in text.strip().split():
                 normalized = " ".join(token.strip().split())
                 if normalized:
-                    words.append({"word": normalized, "start": float(seg_start), "end": float(seg_end)})
+                    words.append(
+                        {
+                            "word": normalized,
+                            "start": float(seg_start),
+                            "end": float(seg_end),
+                        }
+                    )
 
     return words
 

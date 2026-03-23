@@ -91,6 +91,7 @@ def _has_fast_dtw() -> bool:
         return False
     try:
         import triton  # noqa: F401
+
         return True
     except ImportError:
         return False
